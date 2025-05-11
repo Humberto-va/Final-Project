@@ -212,6 +212,20 @@
       ctx.arc(canvasX, canvasY, 10, 0, 2 * Math.PI);
       ctx.fillStyle = 'red';
       ctx.fill();
+      // Draw guessed position as a blue X
+      const guessX = parseFloat(document.getElementById('guessX').value);
+      const guessY = parseFloat(document.getElementById('guessY').value);
+      const gx = guessX * scale;
+      const gy = floorY - guessY * scale;
+
+      ctx.strokeStyle = 'blue';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(gx - 8, gy - 8);
+      ctx.lineTo(gx + 8, gy + 8);
+      ctx.moveTo(gx + 8, gy - 8);
+      ctx.lineTo(gx - 8, gy + 8);
+      ctx.stroke();
 
       requestAnimationFrame(animate);
     }
