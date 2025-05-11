@@ -2,74 +2,168 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>2D Projectile Motion Simulator</title>
+  <title>Projectile Motion with Stats</title>
   <style>
-    body { font-family: Arial; padding: 20px; }
-    canvas { border: 1px solid black; background: #eef; margin-top: 20px; }
-    label, input { display: block; margin: 10px 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f8fb;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1 {
+      color: #333;
+    }
+
+    label {
+      display: block;
+      margin: 10px auto;
+      font-weight: bold;
+    }
+
+    input {
+      padding: 5px;
+      margin: 5px;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin-top: 10px;
+      font-size: 16px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    canvas {
+      display: block;
+      margin: 20px auto;
+      border: 2px solid #ccc;
+      background: #ffffff;
+    }
+
+    #stats {
+      margin-top: 20px;
+      font-size: 16px;
+      text-align: left;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+
+    #stats h2 {
+      text-align: center;
+      color: #444;
+    }
+
+    #stats p {
+      margin: 6px 0;
+    }
   </style>
 </head>
 <body>
-  <h1>Projectile Motion Simulator</h1>
-  
+
+  <h1>2D Projectile Motion Simulator</h1>
+
   <label>Initial Velocity (m/s):
-    <input type="number" id="velocity" value="20">
+    <input type="number" id="velocity" value="25">
   </label>
 
   <label>Launch Angle (degrees):
     <input type="number" id="angle" value="45">
   </label>
 
-  <label>Acceleration Y (m/s², use -9.8 for gravity):
-    <input type="number" id="acceleration" value="-9.8">
-  </label>
-
-  <label>Total Time (seconds):
+  <label>Simulate Time (seconds):
     <input type="number" id="time" value="5">
   </label>
 
-  <button onclick="startAnimation()">Start Animation</button>
+  <button onclick="startAnimation()">Launch</button>
 
-  <canvas id="canvas" width="600" height="400"></canvas>
+  <canvas id="canvas" width="800" height="400"></canvas>
+
+  <div id="stats">
+    <h2>Stats</h2>
+    <p><strong>Distance Traveled:</strong> <span id="distance">-</span> m</p>
+    <p><strong>Maximum Height:</strong> <span id="maxHeight">-</span> m</p>
+    <p><strong>Final Position:</strong> <span id="finalPosition">-</span></p>
+    <p><strong>Final Velocity:</strong> <span id="finalVelocity">-</span> m/s</p>
+  </div>
 
   <script>
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
+    const floorY = canvas.height - 20;
+    const gravity = -9.8;
+    const scale = 10;
 
-    let startTime, v0, angle, ax, ay, totalTime;
-    const scale = 10; // 1 meter = 10 pixels
+    let v0, angle, totalTime, startTime;
+    let trail = [];
+    let maxY = -Infinity;
 
     function startAnimation() {
       v0 = parseFloat(document.getElementById('velocity').value);
-      angle = parseFloat(document.getElementById('angle').value) * Math.PI / 180; // degrees to radians
-      ay = parseFloat(document.getElementById('acceleration').value);
+      angle = parseFloat(document.getElementById('angle').value) * Math.PI / 180;
       totalTime = parseFloat(document.getElementById('time').value);
+
+      trail = [];
+      maxY = -Infinity;
       startTime = null;
+
+      document.getElementById('distance').textContent = '-';
+      document.getElementById('maxHeight').textContent = '-';
+      document.getElementById('finalPosition').textContent = '-';
+      document.getElementById('finalVelocity').textContent = '-';
+
       requestAnimationFrame(animate);
     }
 
     function animate(timestamp) {
       if (!startTime) startTime = timestamp;
-      const t = (timestamp - startTime) / 1000; // seconds
+      const t = (timestamp - startTime) / 1000;
 
-      if (t > totalTime) return;
-
-      // Break velocity into components
       const vx = v0 * Math.cos(angle);
-      const vy = v0 * Math.sin(angle);
+      const vyInitial = v0 * Math.sin(angle);
 
-      // Calculate position
       const x = vx * t;
-      const y = vy * t + 0.5 * ay * t * t;
+      const y = vyInitial * t + 0.5 * gravity * t * t;
 
-      // Convert to canvas coords
+      if (y < 0) {
+        showStats(trail, vx, vyInitial);
+        return;
+      }
+
+      maxY = Math.max(maxY, y);
+
       const canvasX = x * scale;
-      const canvasY = canvas.height - (y * scale); // invert Y
+      const canvasY = floorY - (y * scale);
 
-      // Clear canvas
+      trail.push({ x: x, y: y, vx: vx, vy: vyInitial + gravity * t });
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw ball
+      ctx.beginPath();
+      ctx.moveTo(0, floorY);
+      ctx.lineTo(canvas.width, floorY);
+      ctx.strokeStyle = "#333";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(0, 100, 255, 0.4)';
+      for (let i = 0; i < trail.length; i++) {
+        const p = trail[i];
+        const tx = p.x * scale;
+        const ty = floorY - p.y * scale;
+        if (i === 0) ctx.moveTo(tx, ty);
+        else ctx.lineTo(tx, ty);
+      }
+      ctx.stroke();
+
       ctx.beginPath();
       ctx.arc(canvasX, canvasY, 10, 0, 2 * Math.PI);
       ctx.fillStyle = 'red';
@@ -77,6 +171,25 @@
 
       requestAnimationFrame(animate);
     }
+
+    function showStats(trail, vx, vyInitial) {
+      if (trail.length === 0) return;
+
+      const final = trail[trail.length - 1];
+
+      const distance = final.x.toFixed(2);
+      const maxHeight = maxY.toFixed(2);
+      const finalX = final.x.toFixed(2);
+      const finalY = final.y.toFixed(2);
+      const finalVy = final.vy;
+      const vFinal = Math.sqrt(vx * vx + finalVy * finalVy).toFixed(2);
+
+      document.getElementById('distance').textContent = `${distance}`;
+      document.getElementById('maxHeight').textContent = `${maxHeight}`;
+      document.getElementById('finalPosition').textContent = `(${finalX}, ${finalY}) m`;
+      document.getElementById('finalVelocity').textContent = `${vFinal}`;
+    }
   </script>
+
 </body>
 </html>
