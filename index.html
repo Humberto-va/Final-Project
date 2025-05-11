@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Projectile Motion with Stats</title>
+  <title>Projectile Motion with Propulsion & Air Resistance</title>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -78,8 +78,20 @@
     <input type="number" id="angle" value="45">
   </label>
 
-  <label>Simulate Time (seconds):
-    <input type="number" id="time" value="5">
+  <label>Simulation Time (s):
+    <input type="number" id="time" value="10">
+  </label>
+
+  <label>Propulsion Acceleration (m/s²):
+    <input type="number" id="propulsion" value="5">
+  </label>
+
+  <label>Propulsion Duration (s):
+    <input type="number" id="boostTime" value="1">
+  </label>
+
+  <label>Air Resistance Coefficient (0.01–0.1 recommended):
+    <input type="number" id="drag" value="0.02" step="0.01">
   </label>
 
   <button onclick="startAnimation()">Launch</button>
@@ -101,19 +113,30 @@
     const gravity = -9.8;
     const scale = 10;
 
-    let v0, angle, totalTime, startTime;
+    let startTime, totalTime;
+    let vx, vy, x, y;
+    let propulsion, boostTime, dragCoeff;
     let trail = [];
     let maxY = -Infinity;
 
     function startAnimation() {
-      v0 = parseFloat(document.getElementById('velocity').value);
-      angle = parseFloat(document.getElementById('angle').value) * Math.PI / 180;
+      const v0 = parseFloat(document.getElementById('velocity').value);
+      const angle = parseFloat(document.getElementById('angle').value) * Math.PI / 180;
       totalTime = parseFloat(document.getElementById('time').value);
+      propulsion = parseFloat(document.getElementById('propulsion').value);
+      boostTime = parseFloat(document.getElementById('boostTime').value);
+      dragCoeff = parseFloat(document.getElementById('drag').value);
 
+      // Initial conditions
+      vx = v0 * Math.cos(angle);
+      vy = v0 * Math.sin(angle);
+      x = 0;
+      y = 0;
+      startTime = null;
       trail = [];
       maxY = -Infinity;
-      startTime = null;
 
+      // Reset stats
       document.getElementById('distance').textContent = '-';
       document.getElementById('maxHeight').textContent = '-';
       document.getElementById('finalPosition').textContent = '-';
@@ -125,27 +148,42 @@
     function animate(timestamp) {
       if (!startTime) startTime = timestamp;
       const t = (timestamp - startTime) / 1000;
+      const dt = 0.016; // ~60 FPS
 
-      const vx = v0 * Math.cos(angle);
-      const vyInitial = v0 * Math.sin(angle);
-
-      const x = vx * t;
-      const y = vyInitial * t + 0.5 * gravity * t * t;
-
-      if (y < 0) {
-        showStats(trail, vx, vyInitial);
+      if (t > totalTime || y < 0) {
+        showStats();
         return;
       }
+
+      // Apply propulsion if in boost time
+      if (t <= boostTime) {
+        const a = propulsion;
+        vx += a * Math.cos(Math.atan2(vy, vx)) * dt;
+        vy += a * Math.sin(Math.atan2(vy, vx)) * dt;
+      }
+
+      // Apply gravity
+      vy += gravity * dt;
+
+      // Apply air resistance (drag)
+      vx -= dragCoeff * vx * dt;
+      vy -= dragCoeff * vy * dt;
+
+      // Update position
+      x += vx * dt;
+      y += vy * dt;
 
       maxY = Math.max(maxY, y);
 
       const canvasX = x * scale;
       const canvasY = floorY - (y * scale);
 
-      trail.push({ x: x, y: y, vx: vx, vy: vyInitial + gravity * t });
+      trail.push({ x: x, y: y });
 
+      // Draw
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      // Draw floor
       ctx.beginPath();
       ctx.moveTo(0, floorY);
       ctx.lineTo(canvas.width, floorY);
@@ -153,17 +191,18 @@
       ctx.lineWidth = 2;
       ctx.stroke();
 
+      // Draw trail
       ctx.beginPath();
       ctx.strokeStyle = 'rgba(0, 100, 255, 0.4)';
       for (let i = 0; i < trail.length; i++) {
-        const p = trail[i];
-        const tx = p.x * scale;
-        const ty = floorY - p.y * scale;
+        const tx = trail[i].x * scale;
+        const ty = floorY - trail[i].y * scale;
         if (i === 0) ctx.moveTo(tx, ty);
         else ctx.lineTo(tx, ty);
       }
       ctx.stroke();
 
+      // Draw ball
       ctx.beginPath();
       ctx.arc(canvasX, canvasY, 10, 0, 2 * Math.PI);
       ctx.fillStyle = 'red';
@@ -172,22 +211,16 @@
       requestAnimationFrame(animate);
     }
 
-    function showStats(trail, vx, vyInitial) {
-      if (trail.length === 0) return;
+    function showStats() {
+      const distance = x.toFixed(2);
+      const height = maxY.toFixed(2);
+      const pos = `(${x.toFixed(2)}, ${Math.max(y, 0).toFixed(2)}) m`;
+      const finalV = Math.sqrt(vx * vx + vy * vy).toFixed(2);
 
-      const final = trail[trail.length - 1];
-
-      const distance = final.x.toFixed(2);
-      const maxHeight = maxY.toFixed(2);
-      const finalX = final.x.toFixed(2);
-      const finalY = final.y.toFixed(2);
-      const finalVy = final.vy;
-      const vFinal = Math.sqrt(vx * vx + finalVy * finalVy).toFixed(2);
-
-      document.getElementById('distance').textContent = `${distance}`;
-      document.getElementById('maxHeight').textContent = `${maxHeight}`;
-      document.getElementById('finalPosition').textContent = `(${finalX}, ${finalY}) m`;
-      document.getElementById('finalVelocity').textContent = `${vFinal}`;
+      document.getElementById('distance').textContent = distance;
+      document.getElementById('maxHeight').textContent = height;
+      document.getElementById('finalPosition').textContent = pos;
+      document.getElementById('finalVelocity').textContent = finalV;
     }
   </script>
 
