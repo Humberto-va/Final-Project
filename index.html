@@ -2,48 +2,48 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Ball Motion Simulator</title>
+  <title>2D Projectile Motion Simulator</title>
   <style>
     body { font-family: Arial; padding: 20px; }
-    canvas { border: 1px solid black; background-color: #f0f0f0; margin-top: 20px; }
+    canvas { border: 1px solid black; background: #eef; margin-top: 20px; }
     label, input { display: block; margin: 10px 0; }
   </style>
 </head>
 <body>
-  <h1>Vertical Ball Motion Simulator</h1>
-  
-  <label>Initial Position (meters):
-    <input type="number" id="position" value="0">
-  </label>
+  <h1>Projectile Motion Simulator</h1>
   
   <label>Initial Velocity (m/s):
-    <input type="number" id="velocity" value="10">
+    <input type="number" id="velocity" value="20">
   </label>
 
-  <label>Acceleration (m/s²):
+  <label>Launch Angle (degrees):
+    <input type="number" id="angle" value="45">
+  </label>
+
+  <label>Acceleration Y (m/s², use -9.8 for gravity):
     <input type="number" id="acceleration" value="-9.8">
   </label>
-  
+
   <label>Total Time (seconds):
-    <input type="number" id="time" value="2">
+    <input type="number" id="time" value="5">
   </label>
 
   <button onclick="startAnimation()">Start Animation</button>
 
-  <canvas id="canvas" width="400" height="300"></canvas>
+  <canvas id="canvas" width="600" height="400"></canvas>
 
   <script>
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
 
-    let startTime, s0, v0, a, totalTime;
+    let startTime, v0, angle, ax, ay, totalTime;
+    const scale = 10; // 1 meter = 10 pixels
 
     function startAnimation() {
-      s0 = parseFloat(document.getElementById('position').value);
       v0 = parseFloat(document.getElementById('velocity').value);
-      a = parseFloat(document.getElementById('acceleration').value);
+      angle = parseFloat(document.getElementById('angle').value) * Math.PI / 180; // degrees to radians
+      ay = parseFloat(document.getElementById('acceleration').value);
       totalTime = parseFloat(document.getElementById('time').value);
-
       startTime = null;
       requestAnimationFrame(animate);
     }
@@ -54,16 +54,25 @@
 
       if (t > totalTime) return;
 
-      const yMeters = s0 + v0 * t + 0.5 * a * t * t;
-      const yPixels = 300 - yMeters * 20; // convert meters to canvas pixels (scale)
+      // Break velocity into components
+      const vx = v0 * Math.cos(angle);
+      const vy = v0 * Math.sin(angle);
+
+      // Calculate position
+      const x = vx * t;
+      const y = vy * t + 0.5 * ay * t * t;
+
+      // Convert to canvas coords
+      const canvasX = x * scale;
+      const canvasY = canvas.height - (y * scale); // invert Y
 
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw the ball
+      // Draw ball
       ctx.beginPath();
-      ctx.arc(200, yPixels, 10, 0, 2 * Math.PI);
-      ctx.fillStyle = "red";
+      ctx.arc(canvasX, canvasY, 10, 0, 2 * Math.PI);
+      ctx.fillStyle = 'red';
       ctx.fill();
 
       requestAnimationFrame(animate);
